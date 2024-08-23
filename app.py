@@ -1,36 +1,40 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+import os
 import cv2
 import numpy as np
-from your_yoga_analyzer_module import YogaAnalyzer  # Replace with your actual module
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from yoga_analyzer import YogaAnalyzer  # Assuming this is in a separate file `yoga_analyzer.py`
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS if you're accessing the API from a different domain
+CORS(app)
 
+# Initialize the YogaAnalyzer
 yoga_analyzer = YogaAnalyzer()
 
 @app.route('/')
 def index():
-    return jsonify({"message": "Welcome to the Yoga Analyzer API!"})
+    return "Flask Yoga Analyzer is running!"
 
 @app.route('/video_feed', methods=['POST'])
 def video_feed():
-    if request.method == 'POST':
-        try:
-            # Assuming the data is sent as raw bytes
-            nparr = np.frombuffer(request.data, np.uint8)
-            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
-            if img is None:
-                return jsonify({"error": "Failed to decode image"}), 400
-
-            # Analyze the image using the YogaAnalyzer class
-            results = yoga_analyzer.analyze_pose(img)
-            return jsonify(results), 200
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-    else:
-        return jsonify({"error": "Method not allowed"}), 405
+    try:
+        # Get the image file from the request
+        if 'image' not in request.files:
+            return jsonify({"error": "No image file in the request"}), 400
+        
+        image_file = request.files['image'].read()
+        np_arr = np.frombuffer(image_file, np.uint8)
+        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        
+        # Analyze the pose using YogaAnalyzer
+        analysis_results = yoga_analyzer.analyze_pose(img)
+        
+        # Return the results as a JSON response
+        return jsonify(analysis_results)
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 10000))  # Render.com uses port 10000
+    app.run(host='0.0.0.0', port=port)
