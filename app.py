@@ -1,39 +1,48 @@
-import os
+from flask import Flask, request, jsonify
 import cv2
 import numpy as np
-from flask import Flask, request, jsonify
+import base64
+from main import YogaAnalyzer
 from flask_cors import CORS
-from main import YogaAnalyzer  # Assuming this is in a separate file `yoga_analyzer.py`
 
 app = Flask(__name__)
 CORS(app)
 
-# Initialize the YogaAnalyzer
 yoga_analyzer = YogaAnalyzer()
 
 @app.route('/')
 def index():
     return "Flask Yoga Analyzer is running!"
-
+    
 @app.route('/video_feed', methods=['POST'])
 def video_feed():
     try:
-        # Get the image file from the request
-        if 'image' not in request.files:
-            return jsonify({"error": "No image file in the request"}), 400
+        print("Received a request")
         
-        image_file = request.files['image'].read()
-        np_arr = np.frombuffer(image_file, np.uint8)
-        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        data = request.data
+        if not data:
+            raise ValueError("No data received")
         
-        # Analyze the pose using YogaAnalyzer
-        analysis_results = yoga_analyzer.analyze_pose(img)
+        print(f"Data size: {len(data)} bytes")
         
-        # Return the results as a JSON response
-        return jsonify(analysis_results)
-    
+        # Decode Base64 string into numpy array
+        np_arr = np.frombuffer(base64.b64decode(data), np.uint8)
+        print(f"Buffer size: {np_arr.size}")
+        
+        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+        if frame is None:
+            raise ValueError("Failed to decode the image")
+
+        analyzed_frame = yoga_analyzer.analyze_pose(frame)
+
+        # Get the results from YogaAnalyzer after analyzing the pose
+        results = yoga_analyzer.get_results()
+
+        return jsonify(results)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Error processing the image: {e}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))  # Render.com uses port 10000
