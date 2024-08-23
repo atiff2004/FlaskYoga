@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from yoga_analyzer import YogaAnalyzer  # Assuming this is in a separate file `yoga_analyzer.py`
+from main import YogaAnalyzer  # Assuming this is in a separate file `yoga_analyzer.py`
 
 app = Flask(__name__)
 CORS(app)
