@@ -1,44 +1,36 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import cv2
 import numpy as np
-import base64
-from main import YogaAnalyzer
-from flask_cors import CORS
+from your_yoga_analyzer_module import YogaAnalyzer  # Replace with your actual module
 
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # Enable CORS if you're accessing the API from a different domain
 
 yoga_analyzer = YogaAnalyzer()
 
+@app.route('/')
+def index():
+    return jsonify({"message": "Welcome to the Yoga Analyzer API!"})
+
 @app.route('/video_feed', methods=['POST'])
 def video_feed():
-    try:
-        print("Received a request")
-        
-        data = request.data
-        if not data:
-            raise ValueError("No data received")
-        
-        print(f"Data size: {len(data)} bytes")
-        
-        # Decode Base64 string into numpy array
-        np_arr = np.frombuffer(base64.b64decode(data), np.uint8)
-        print(f"Buffer size: {np_arr.size}")
-        
-        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    if request.method == 'POST':
+        try:
+            # Assuming the data is sent as raw bytes
+            nparr = np.frombuffer(request.data, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-        if frame is None:
-            raise ValueError("Failed to decode the image")
+            if img is None:
+                return jsonify({"error": "Failed to decode image"}), 400
 
-        analyzed_frame = yoga_analyzer.analyze_pose(frame)
+            # Analyze the image using the YogaAnalyzer class
+            results = yoga_analyzer.analyze_pose(img)
+            return jsonify(results), 200
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    else:
+        return jsonify({"error": "Method not allowed"}), 405
 
-        # Get the results from YogaAnalyzer after analyzing the pose
-        results = yoga_analyzer.get_results()
-
-        return jsonify(results)
-    except Exception as e:
-        print(f"Error processing the image: {e}")
-        return jsonify({'error': str(e)}), 500
-
-if __name__ == "__main__":
-    app.run(debug=True)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
